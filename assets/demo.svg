@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 430" width="100%" height="100%">
+  <defs>
+    <style>
+      .bg { fill: #0d1117; stroke: #30363d; stroke-width: 1.5; }
+      .header { fill: #161b22; }
+      .title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; font-size: 12px; fill: #8b949e; text-anchor: middle; }
+      .code { font-family: "JetBrains Mono", "Fira Code", Consolas, "Courier New", monospace; font-size: 13px; fill: #c9d1d9; }
+      .prompt { fill: #58a6ff; font-weight: bold; }
+      .cmd { fill: #f0f6fc; font-weight: bold; }
+      .ok { fill: #3fb950; font-weight: bold; }
+      .cyan { fill: #79c0ff; }
+      .yellow { fill: #d29922; }
+      .red { fill: #f85149; }
+      .muted { fill: #8b949e; }
+    </style>
+  </defs>
+  <rect class="bg" x="1" y="1" width="878" height="428" rx="10" ry="10"/>
+  <path class="header" d="M 1 11 Q 1 1 11 1 L 869 1 Q 879 1 879 11 L 879 36 L 1 36 Z"/>
+  <line x1="1" y1="36" x2="879" y2="36" stroke="#30363d" stroke-width="1"/>
+  <circle cx="20" cy="18" r="6" fill="#ff5f56"/>
+  <circle cx="40" cy="18" r="6" fill="#ffbd2e"/>
+  <circle cx="60" cy="18" r="6" fill="#27c93f"/>
+  <text class="title" x="440" y="22">diffmem — Zero-Touch Diff-of-Diffs Episodic Memory for Coding Agents</text>
+
+  <text class="code" x="24" y="66"><tspan class="prompt">$</tspan> <tspan class="cmd">diffmem init</tspan></text>
+  <text class="code" x="24" y="86">Installed git post-commit hook: .git/hooks/post-commit</text>
+  <text class="code" x="24" y="104">Initialized diffmem in .diffmem <tspan class="muted">(watching working-tree drafts &amp; commits)</tspan></text>
+
+  <text class="code" x="24" y="136"><tspan class="prompt">$</tspan> <tspan class="cmd">git commit -m "fix(payments): replace float tax math with integer basis points"</tspan></text>
+  <text class="code" x="24" y="156"><tspan class="ok">Post-commit recorded 2 new episodic rule(s).</tspan> <tspan class="muted">Synced CLAUDE.md, .cursor/rules/, AGENTS.md</tspan></text>
+
+  <text class="code" x="24" y="188"><tspan class="prompt">$</tspan> <tspan class="cmd">diffmem log</tspan></text>
+  <text class="code" x="24" y="208"><tspan class="muted">ID           STATUS   PATH GLOB          MISTAKE                                    FIX</tspan></text>
+  <text class="code" x="24" y="226"><tspan class="cyan">mem-4a5752a9</tspan> <tspan class="ok">ACTIVE</tspan>   <tspan class="yellow">src/payments/**</tspan>    Used floating-point math for currency      Use Decimal, BigInt, or integer basis points</text>
+  <text class="code" x="24" y="244"><tspan class="cyan">mem-9c1204b1</tspan> <tspan class="ok">ACTIVE</tspan>   <tspan class="yellow">src/db/**</tspan>          Constructed SQL via string interpolation   Use parameterized queries ($1 / ?)</text>
+
+  <text class="code" x="24" y="276"><tspan class="prompt">$</tspan> <tspan class="cmd">diffmem blame src/payments/invoice.rs</tspan></text>
+  <text class="code" x="24" y="298">[<tspan class="cyan">mem-4a5752a9</tspan>] <tspan class="ok">Active</tspan>  |  Glob: <tspan class="yellow">src/payments/**</tspan></text>
+  <text class="code" x="24" y="318">  Mistake: Used floating-point math for currency/exact values in `pub fn compute_total`</text>
+  <text class="code" x="24" y="336">  Fix:     Use Decimal, BigInt, or integer basis point arithmetic</text>
+  <text class="code" x="24" y="358">  Rejected Draft Hunk:   <tspan class="red">- let fee = (amount as f64 * 0.05) as u64;</tspan></text>
+  <text class="code" x="24" y="378">  Accepted Commit Hunk:  <tspan class="ok">+ let fee = amount.checked_mul(500)? / 10_000;</tspan></text>
+
+  <text class="code" x="24" y="410"><tspan class="prompt">$</tspan> <tspan class="cmd">diffmem revert mem-9c1204b1</tspan>  <tspan class="muted"># Deactivate rule &amp; re-sync all editor instruction files</tspan></text>
+</svg>
