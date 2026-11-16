@@ -1,6 +1,7 @@
 # Rust
 target/
 **/*.rs.bk
+.diffmem/
 
 # Python
 .venv/
