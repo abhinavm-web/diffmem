@@ -2,6 +2,7 @@
 
 **Zero-touch episodic failure memory for coding agents — correlates rejected agent diffs against final git commits.**
 
+[![CI](https://github.com/abhinavm-web/diffmem/actions/workflows/ci.yml/badge.svg)](https://github.com/abhinavm-web/diffmem/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-2021-orange.svg)](Cargo.toml)
 
@@ -39,11 +40,16 @@ Meanwhile, the highest-signal learning signal on your machine is completely igno
                                       CLAUDE.md     .cursor/rules/*.mdc       AGENTS.md
 ```
 
-## Installation
+## Installation & 30-Second Showcase
 
 ```bash
 git clone https://github.com/abhinavm-web/diffmem.git
 cd diffmem
+
+# Run the self-contained Diff-of-Diffs distillation & multi-editor sync showcase
+cargo run --example showcase
+
+# Or install the CLI & watcher binary globally
 cargo install --path .
 ```
 
