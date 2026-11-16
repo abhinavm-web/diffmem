@@ -95,13 +95,129 @@ pub fn extract_semantics(heading: &str, rej: &str, acc: &str) -> (String, String
         );
     }
 
-    // 6. General Syntactic Fallback
+    // 6. SQL string interpolation -> Parameterized query
+    if (rej.contains("format!(\"SELECT") || rej.contains("format!(\"INSERT") || rej.contains("format!(\"UPDATE") || rej.contains("f\"SELECT "))
+        && (acc.contains("$1") || acc.contains("?") || acc.contains(".bind(") || acc.contains("query_as"))
+    {
+        return (
+            format!("Constructed SQL query via string interpolation{}", ctx),
+            "Use parameterized queries with bound placeholders ($1 / ?)".to_string(),
+        );
+    }
+
+    // 7. Blocking I/O or sleep in async context
+    if (rej.contains("std::thread::sleep") || rej.contains("std::fs::"))
+        && (acc.contains("tokio::time::sleep") || acc.contains("tokio::fs::"))
+    {
+        return (
+            format!("Used blocking std I/O or thread::sleep inside async path{}", ctx),
+            "Use non-blocking tokio::fs / tokio::time::sleep equivalents".to_string(),
+        );
+    }
+
+    // 8. UTF-8 byte slicing -> char-boundary safe iteration
+    if (rej.contains("[..") && !rej.contains("chars()"))
+        && (acc.contains(".chars().take(") || acc.contains(".char_indices()"))
+    {
+        return (
+            format!("Sliced string by raw byte index{}", ctx),
+            "Use .chars().take() or .char_indices() to respect UTF-8 boundaries".to_string(),
+        );
+    }
+
+    // 9. Optional LLM / Ollama semantic distillation when configured
+    if let Some(pair) = try_llm_distill(&ctx, rej, acc) {
+        return pair;
+    }
+
+    // 10. General Syntactic Fallback
     let rej_first = rej.lines().find(|l| !l.trim().is_empty()).unwrap_or("candidate logic").trim();
     let acc_first = acc.lines().find(|l| !l.trim().is_empty()).unwrap_or("clean resolution").trim();
 
     let mistake = format!("Rejected draft logic{}: `{}`", ctx, truncate_line(rej_first, 60));
     let fix = format!("Committed resolution: `{}`", truncate_line(acc_first, 60));
     (mistake, fix)
+}
+
+fn try_llm_distill(ctx: &str, rej: &str, acc: &str) -> Option<(String, String)> {
+    let (url, api_key, model, is_anthropic) = if let Ok(key) = std::env::var("ANTHROPIC_API_KEY") {
+        (
+            "https://api.anthropic.com/v1/messages".to_string(),
+            Some(key),
+            std::env::var("DIFFMEM_MODEL").unwrap_or_else(|_| "claude-3-5-haiku-20241022".to_string()),
+            true,
+        )
+    } else if let Ok(key) = std::env::var("OPENAI_API_KEY") {
+        (
+            "https://api.openai.com/v1/chat/completions".to_string(),
+            Some(key),
+            std::env::var("DIFFMEM_MODEL").unwrap_or_else(|_| "gpt-4o-mini".to_string()),
+            false,
+        )
+    } else if let Ok(custom_url) = std::env::var("DIFFMEM_LLM_URL") {
+        (
+            custom_url,
+            std::env::var("DIFFMEM_API_KEY").ok(),
+            std::env::var("DIFFMEM_MODEL").unwrap_or_else(|_| "default".to_string()),
+            false,
+        )
+    } else {
+        return None;
+    };
+
+    let prompt = format!(
+        "Compare the rejected code hunk against the accepted fix{ctx}.\n\
+         Rejected:\n{rej}\n\nAccepted:\n{acc}\n\n\
+         Output strictly JSON: {{\"mistake\":\"<concise 1-line mistake>\",\"fix\":\"<concise 1-line rule>\"}}"
+    );
+
+    let payload = if is_anthropic {
+        serde_json::json!({
+            "model": model,
+            "max_tokens": 200,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.0
+        })
+    } else {
+        serde_json::json!({
+            "model": model,
+            "messages": [
+                {"role": "system", "content": "Output strictly JSON with keys 'mistake' and 'fix'."},
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": 0.0
+        })
+    };
+
+    let mut req = ureq::post(&url)
+        .timeout(std::time::Duration::from_secs(5))
+        .set("Content-Type", "application/json");
+    if let Some(k) = &api_key {
+        if is_anthropic {
+            req = req.set("x-api-key", k).set("anthropic-version", "2023-06-01");
+        } else {
+            req = req.set("Authorization", &format!("Bearer {k}"));
+        }
+    }
+
+    let resp = req.send_json(payload).ok()?;
+    let json: serde_json::Value = resp.into_json().ok()?;
+    let content = json["choices"][0]["message"]["content"]
+        .as_str()
+        .or_else(|| json["content"][0]["text"].as_str())?;
+    let clean = content
+        .trim()
+        .trim_start_matches("```json")
+        .trim_start_matches("```")
+        .trim_end_matches("```")
+        .trim();
+    let parsed: serde_json::Value = serde_json::from_str(clean).ok()?;
+    let mistake = parsed.get("mistake")?.as_str()?.trim().to_string();
+    let fix = parsed.get("fix")?.as_str()?.trim().to_string();
+    if mistake.is_empty() || fix.is_empty() {
+        return None;
+    }
+    Some((mistake, fix))
 }
 
 pub fn format_snippet(lines: &[&str]) -> String {
@@ -121,10 +237,12 @@ pub fn format_snippet(lines: &[&str]) -> String {
 }
 
 fn truncate_line(s: &str, max: usize) -> &str {
-    if s.len() > max {
-        &s[..max]
-    } else {
-        s
+    if s.chars().count() <= max {
+        return s;
+    }
+    match s.char_indices().nth(max) {
+        Some((byte_idx, _)) => &s[..byte_idx],
+        None => s,
     }
 }
 
@@ -193,5 +311,24 @@ mod tests {
         );
         assert!(mistake.contains("mutated global"));
         assert!(fix.contains("thread-safe"));
+    }
+
+    #[test]
+    fn test_extract_semantics_sql_interpolation_and_blocking_async() {
+        let (m1, f1) = extract_semantics(
+            "pub async fn find_user()",
+            "let q = format!(\"SELECT * FROM users WHERE id = {}\", id);",
+            "let q = sqlx::query_as(\"SELECT * FROM users WHERE id = $1\").bind(id);"
+        );
+        assert!(m1.contains("SQL query via string interpolation"));
+        assert!(f1.contains("parameterized"));
+
+        let (m2, f2) = extract_semantics(
+            "pub async fn poll()",
+            "std::thread::sleep(Duration::from_secs(1));",
+            "tokio::time::sleep(Duration::from_secs(1)).await;"
+        );
+        assert!(m2.contains("blocking std I/O"));
+        assert!(f2.contains("tokio"));
     }
 }
