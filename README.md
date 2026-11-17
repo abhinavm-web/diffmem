@@ -47,7 +47,19 @@ Meanwhile, the highest-signal learning signal on your machine is completely igno
 
 ## Installation & 30-Second Showcase
 
-Download prebuilt binaries for Linux, macOS (Apple Silicon), and Windows from [GitHub Releases](https://github.com/abhinavm-web/diffmem/releases/latest), or build from source:
+Install prebuilt binaries with one command, download directly from [GitHub Releases](https://github.com/abhinavm-web/diffmem/releases/latest), or build from source:
+
+```bash
+# macOS (Apple Silicon) & Linux (x86_64)
+curl -fsSL https://raw.githubusercontent.com/abhinavm-web/diffmem/main/install.sh | sh
+```
+
+```powershell
+# Windows (PowerShell)
+irm https://raw.githubusercontent.com/abhinavm-web/diffmem/main/install.ps1 | iex
+```
+
+Or run from source:
 
 ```bash
 git clone https://github.com/abhinavm-web/diffmem.git
