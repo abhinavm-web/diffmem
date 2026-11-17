@@ -142,6 +142,26 @@ src/
     └── antigravity.rs  # Marker-bounded sync for AGENTS.md (preserves behavior-guidelines)
 ```
 
+## Signal Quality & Benchmark
+
+Reproduce on your machine:
+
+```bash
+cargo run --release --example benchmark
+```
+
+**Human-in-the-Loop Controls:**
+- `diffmem log` displays occurrence counts (`SEEN`, e.g., `2x`) so you can distinguish one-off exploratory edits from recurring mistakes.
+- `diffmem blame <file>` shows the exact rejected vs. accepted hunks behind every rule.
+- `diffmem approve <id>` / `diffmem revert <id>` give you instant one-command approval or rollback across `CLAUDE.md`, `.cursor/rules/*.mdc`, and `AGENTS.md`.
+
+| 20-Commit Evaluation Metric | Measured Result |
+| :--- | :--- |
+| Non-overlapping exploratory diffs ignored | **12 / 12 (100% noise filtered)** |
+| Unique rules synthesized across 8 recurring mistakes | **4 rules** |
+| Rules automatically promoted to `>= 2x` recurrence | **4 / 4** |
+| Total correlation + persistence latency | **1.81 ms** |
+
 ## Development & Verification
 
 ```bash

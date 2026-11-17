@@ -71,16 +71,21 @@ impl RuleStore {
     }
 
     pub fn add_rule(&mut self, rule: EpisodicRule) -> Result<bool, StoreError> {
-        if self.rules.iter().any(|r| r.id == rule.id) {
+        if let Some(existing) = self.rules.iter_mut().find(|r| r.id == rule.id) {
+            existing.occurrences = existing.occurrences.saturating_add(1);
+            existing.timestamp = rule.timestamp;
             return Ok(false);
         }
 
         if let Some(existing) = self.rules.iter_mut().find(|r| {
-            r.path_glob == rule.path_glob && r.hunk_rejected.trim() == rule.hunk_rejected.trim()
+            r.path_glob == rule.path_glob
+                && (r.hunk_rejected.trim() == rule.hunk_rejected.trim() || r.mistake == rule.mistake)
         }) {
+            existing.occurrences = existing.occurrences.saturating_add(1);
             existing.timestamp = rule.timestamp;
             existing.fix = rule.fix;
             existing.hunk_accepted = rule.hunk_accepted;
+            existing.active = true;
             return Ok(false);
         }
 

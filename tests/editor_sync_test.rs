@@ -15,6 +15,7 @@ fn sample_rule(id: &str, glob: &str, mistake: &str, fix: &str) -> EpisodicRule {
         hunk_rejected: "- rejected_code();\n".to_string(),
         hunk_accepted: "+ fixed_code();\n".to_string(),
         active: true,
+        occurrences: 1,
     }
 }
 

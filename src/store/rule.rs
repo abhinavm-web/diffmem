@@ -3,6 +3,10 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::path::Path;
 
+fn default_occurrences() -> u32 {
+    1
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EpisodicRule {
     pub id: String,
@@ -13,6 +17,8 @@ pub struct EpisodicRule {
     pub hunk_rejected: String,
     pub hunk_accepted: String,
     pub active: bool,
+    #[serde(default = "default_occurrences")]
+    pub occurrences: u32,
 }
 
 impl EpisodicRule {
@@ -39,6 +45,7 @@ impl EpisodicRule {
             hunk_rejected,
             hunk_accepted,
             active: true,
+            occurrences: 1,
         }
     }
 

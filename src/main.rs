@@ -70,6 +70,14 @@ pub enum Commands {
         no_sync: bool,
     },
 
+    /// Approve/reactivate an episodic rule by ID and sync to editor files
+    Approve {
+        #[arg(help = "Rule ID to approve (e.g. mem-a19f)")]
+        id: String,
+        #[arg(long, help = "Skip editor synchronization")]
+        no_sync: bool,
+    },
+
     /// Synchronize rules to editor files (CLAUDE.md, Cursor rules, AGENTS.md)
     Sync {
         #[arg(long, value_enum, default_value_t = SyncTargetCli::All, help = "Target editor adapter")]
@@ -138,6 +146,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::Revert { id, delete, no_sync } => {
             cmd_revert(&repo_root, &id, delete, no_sync)?;
         }
+        Commands::Approve { id, no_sync } => {
+            cmd_approve(&repo_root, &id, no_sync)?;
+        }
         Commands::Sync { target, dry_run } => {
             cmd_sync(&repo_root, target.into(), dry_run)?;
         }
@@ -204,14 +215,18 @@ fn cmd_log(repo: &Path, all: bool, json: bool, glob_filter: Option<String>) -> R
         return Ok(());
     }
 
-    println!("{:<10} {:<8} {:<24} {:<32} FIX", "ID", "STATUS", "PATH GLOB", "MISTAKE");
-    println!("{}", "-".repeat(100));
+    println!("{:<12} {:<8} {:<5} {:<22} {:<32} FIX", "ID", "STATUS", "SEEN", "PATH GLOB", "MISTAKE");
+    println!("{}", "-".repeat(108));
 
     for rule in rules {
         let status = if rule.active { "ACTIVE" } else { "REVERTED" };
+        let seen = format!("{}x", rule.occurrences);
         let mistake_trunc = truncate(&rule.mistake, 30);
         let fix_trunc = truncate(&rule.fix, 30);
-        println!("{:<10} {:<8} {:<24} {:<32} {}", rule.id, status, rule.path_glob, mistake_trunc, fix_trunc);
+        println!(
+            "{:<12} {:<8} {:<5} {:<22} {:<32} {}",
+            rule.id, status, seen, rule.path_glob, mistake_trunc, fix_trunc
+        );
     }
 
     Ok(())
@@ -260,6 +275,21 @@ fn cmd_revert(repo: &Path, id: &str, delete: bool, no_sync: bool) -> Result<(), 
         println!("Reverted rule {} (marked inactive)", id);
     }
     store.save()?;
+
+    if !no_sync {
+        let registry = AdapterRegistry::new();
+        let reports = registry.sync(SyncTarget::All, repo, store.all_rules(), false)?;
+        println!("Synchronized {} editor target(s).", reports.len());
+    }
+
+    Ok(())
+}
+
+fn cmd_approve(repo: &Path, id: &str, no_sync: bool) -> Result<(), DiffmemError> {
+    let mut store = RuleStore::load_or_create(repo)?;
+    store.activate_rule(id)?;
+    store.save()?;
+    println!("Approved rule {} (marked active)", id);
 
     if !no_sync {
         let registry = AdapterRegistry::new();
