@@ -1,6 +1,6 @@
 [package]
 name = "diffmem"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["Abhinav Mahajan <abhinavmahajan91@gmail.com>"]
 description = "Zero-touch episodic failure memory for coding agents"
